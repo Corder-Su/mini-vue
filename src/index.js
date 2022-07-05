@@ -23,7 +23,10 @@ function trigger(target, key) { // 在 setter 中调用，触发副作用
     const effects = depsMap.get(key);
 
     const effectToRun = new Set(effects);
-    effectToRun.forEach(fn => fn());
+    effectToRun.forEach(fn => {
+        if (fn === activeEffect) return;
+        fn();
+    });
 }
 
 // 使用一个全局变量表示当前的副作用函数
@@ -94,42 +97,41 @@ const proxyObj = new Proxy(data, {
  * 解决： 依赖的更新！
  */
 
-effect(() => {
-    console.log('effectFn1 run');
+// effect(() => {
+//     console.log('effectFn1 run');
     
-    effect(() => {
-        console.log('effectFn2 run', proxyObj.id);
-    })
+//     effect(() => {
+//         console.log('effectFn2 run', proxyObj.id);
+//     })
 
-    let temp1 = proxyObj.text;
-});
+//     let temp1 = proxyObj.text;
+// });
 
-console.log(effectStack);
-
-setTimeout(() => {
-    proxyObj.text = '响应式';
-}, 1000)
-
-setTimeout(() => {
-    proxyObj.id = 579;
-    console.log(bunket.get(data).get('id').values().next().value.deps);
-}, 2000)
-
-setTimeout(() => {
-    proxyObj.text = '响应式';
-}, 3000)
-
-setTimeout(() => {
-    proxyObj.id = 579;
-    console.log(bunket.get(data).get('id'));
-}, 4000)
-
-
+// setTimeout(() => {
+//     proxyObj.text = '响应式';
+// }, 1000)
 
 // setTimeout(() => {
 //     proxyObj.id = 579;
-// }, 3000)
+//     console.log(bunket.get(data).get('id').values().next().value.deps);
+// }, 2000)
 
 // setTimeout(() => {
 //     proxyObj.text = '响应式';
 // }, 3000)
+
+// setTimeout(() => {
+//     proxyObj.id = 579;
+//     console.log(bunket.get(data).get('id'));
+// }, 4000)
+
+
+
+/**
+ * 自增运算符 ： 栈溢出？
+ */
+effect(() => {
+    proxyObj.id += '1';    
+});
+
+console.log(proxyObj);
