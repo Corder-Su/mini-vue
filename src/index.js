@@ -28,13 +28,17 @@ function trigger(target, key) { // 在 setter 中调用，触发副作用
 
 // 使用一个全局变量表示当前的副作用函数
 let activeEffect;
+const effectStack = [];
 
 // effect函数： 注册副作用函数
 function effect(fn) {
     const effectFn = () => {
         cleanUp(effectFn);
         activeEffect = effectFn;
+        effectStack.push(activeEffect);
         fn(); // 执行fn的时候，会收集activeEffect，所以先把fn赋值给activeEffect
+        effectStack.pop();
+        activeEffect = effectStack[effectStack.length - 1];
     };
     
     effectFn.deps = [];
@@ -91,9 +95,16 @@ const proxyObj = new Proxy(data, {
  */
 
 effect(() => {
-    console.log('effect run');
-    document.querySelector('.app').innerHTML = proxyObj.id === '20' ? proxyObj.text : 'null';
+    console.log('effectFn1 run');
+    
+    effect(() => {
+        console.log('effectFn2 run', proxyObj.id);
+    })
+
+    let temp1 = proxyObj.text;
 });
+
+console.log(effectStack);
 
 setTimeout(() => {
     proxyObj.text = '响应式';
@@ -101,8 +112,24 @@ setTimeout(() => {
 
 setTimeout(() => {
     proxyObj.id = 579;
+    console.log(bunket.get(data).get('id').values().next().value.deps);
 }, 2000)
 
 setTimeout(() => {
     proxyObj.text = '响应式';
 }, 3000)
+
+setTimeout(() => {
+    proxyObj.id = 579;
+    console.log(bunket.get(data).get('id'));
+}, 4000)
+
+
+
+// setTimeout(() => {
+//     proxyObj.id = 579;
+// }, 3000)
+
+// setTimeout(() => {
+//     proxyObj.text = '响应式';
+// }, 3000)
