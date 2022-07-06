@@ -23,9 +23,13 @@ function trigger(target, key) { // 在 setter 中调用，触发副作用
     const effects = depsMap.get(key);
 
     const effectToRun = new Set(effects);
-    effectToRun.forEach(fn => {
-        if (fn === activeEffect) return;
-        fn();
+    effectToRun.forEach(effectFn => {
+        if (effectFn === activeEffect) return;
+        if (effectFn.options.scheduler) {
+            effectFn.options.scheduler(effectFn);
+        } else {
+            effectFn();
+        }
     });
 }
 
@@ -34,7 +38,7 @@ let activeEffect;
 const effectStack = [];
 
 // effect函数： 注册副作用函数
-function effect(fn) {
+function effect(fn, options = {}) {
     const effectFn = () => {
         cleanUp(effectFn);
         activeEffect = effectFn;
@@ -45,6 +49,7 @@ function effect(fn) {
     };
     
     effectFn.deps = [];
+    effectFn.options = options; // 将参数对象挂到 effectFn 上
     effectFn();
 }
 
@@ -59,7 +64,7 @@ function cleanUp(effectFn){
 
 const data = {
     text: 'Hello mini-vue3',
-    id: '20',
+    id: 20,
 };
 
 const proxyObj = new Proxy(data, {
@@ -130,8 +135,59 @@ const proxyObj = new Proxy(data, {
 /**
  * 自增运算符 ： 栈溢出？
  */
-effect(() => {
-    proxyObj.id += '1';    
-});
+// effect(() => {
+//     proxyObj.id += '1';    
+// });
 
-console.log(proxyObj);
+// console.log(proxyObj);
+
+
+/**
+ * scheduler 调度器
+ *  1. 控制执行顺序， 放到宏任务当中；
+ *  2. 控制执行次数
+ */
+// effect(() => {
+//     console.log(proxyObj.id);
+// },{
+//     scheduler(fn) {
+//         setTimeout(fn);
+//     }
+// })
+
+// proxyObj.id ++;
+
+// console.log('分割线');
+
+/**
+ *  2. 为了实现连续多次修改，只执行一次副作用， 定义一个任务队列
+ */
+const jobQueue = new Set();
+const p = Promise.resolve();
+
+let isFlushing = false;
+function flushJob() {
+    if (isFlushing) return;
+
+    isFlushing = true;
+    p.then( _ => {
+        jobQueue.forEach(job => job());
+    }).finally( _ => {
+        isFlushing = false;
+    })
+}
+
+effect(() => {
+    console.log(proxyObj.id);
+},{
+    scheduler(fn) {
+        jobQueue.add(fn);
+        flushJob();
+    }
+})
+
+proxyObj.id ++;
+proxyObj.id ++;
+proxyObj.id ++;
+
+// console.log('分割线');
